@@ -1,0 +1,223 @@
+---
+title: "02_analysis"
+output: html_document
+date: "2025-02-17"
+---
+```{r}
+load("data/data.Rdata")
+singlem <- read.csv("data/singlem.csv",sep=";",header=T)
+```
+library(tibble)
+duplicated_columns <- colnames(genome_gifts)[duplicated(colnames(genome_gifts))]
+print(duplicated_columns)
+sample_metadata$bases_lost_fastp_percent <- as.numeric(as.character(sample_metadata$bases_lost_fastp_percent))
+
+
+#data preperation
+```{r data_preparation04, message=FALSE}
+#Get list of present MAGs
+present_MAGs <- genome_counts %>%
+  filter(rowSums(.[, -1]) != 0) %>%
+  rownames()
+
+#Remove samples with all zeros (no data after filtering)
+genome_counts_filt <- genome_counts %>%
+  select_if(~!all(. == 0))
+
+#Align distillr annotations with present MAGs and remove all-zero and all-one traits
+present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_gifts)]
+
+genome_gifts <- genome_gifts[, colnames(genome_gifts) != "T050601"]
+
+genome_gifts_filt <- as.data.frame(genome_gifts)[present_MAGs, ] %>%
+  select_if(~!all(. == 0)) %>%  # remove all-zero modules
+  select_if(~!all(. == 1))  # remove all-one modules
+
+#Align tree with present MAGs
+tree_filt <- keep.tip(genome_tree,present_MAGs)
+
+#Filter count table to only contain present MAGs after gifts filtering
+genome_counts_filt <- genome_counts[present_MAGs,]
+
+#Calculate sequence fractions for each samples
+sequence_fractions <- read_counts %>%
+  pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
+  group_by(sample) %>%
+  dplyr::summarize(mags = sum(value)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample))  %>%
+  select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
+  mutate(mags_bases = mags*146) %>%
+  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
+  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
+  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
+  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
+```
+
+#Alpha Diversity
+```{r alpha_diversity, cache=TRUE}
+#ALPHA DIVERSITY
+q0n <- hilldiv2::hilldiv(genome_counts,q=0) %>% c()
+q1n <- hilldiv2::hilldiv(genome_counts,q=1) %>% c()
+q1p <- hilldiv2::hilldiv(genome_counts,q=1,tree=genome_tree) %>% c()
+dist <- hilldiv2::traits2dist(genome_gifts_filt, method="gower")
+q1f <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist) %>% c()
+
+```
+
+```{r alpha_summary, warning=FALSE}
+
+# Merge all metrics
+alpha <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3)) %>%
+  as.data.frame()
+columns <- c("richness","neutral","phylo","func","mapped","total")
+
+# Add amount of sequencing data to the table
+alpha <- alpha %>%
+  left_join(sequence_fractions, by = join_by(sample == sample)) %>% #add sequencing depth information
+  mutate(mapped=round(mags_bases/1000000000,3)) %>% #modify depth to million reads
+  mutate(total=round((mags_bases+unmapped_bases+host_bases+lowqual_bases)/1000000000,3)) %>%
+  select(sample,richness,neutral,phylo,mapped,total) %>%
+  mutate(across(-1, as.numeric))
+
+# Join sample metadata
+alpha_div <- alpha %>%
+  pivot_longer(-c(sample), names_to = "data", values_to = "value") %>%
+  mutate(metric = factor(data, levels = columns)) %>%
+  left_join(sample_metadata, by='sample')
+ alpha_div %>%
+  select(sample, species, metric, value) %>%
+  mutate(
+    species = factor(species), # Convert species to factor if necessary
+    sample = factor(sample, levels = unique(sample[order(species)])) # Reorder sample by species
+  ) %>%
+  ggplot(aes(x = value, y = sample, fill = species)) +
+  geom_bar(stat = 'identity') +
+  scale_fill_manual(values = squirrel_colors) +
+  facet_wrap(~ metric, scales = "free_x", ncol = 6) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor.x = element_line(size = .1, color = "grey"),
+    panel.spacing = unit(0, "lines"),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_blank(),
+    legend.position = "none"
+  )
+  
+```
+
+#Alpha diversity plots
+```{r alpha_sp_plots, fig.dim = c(8, 10)}
+neutral.sp <- alpha_div %>%
+            filter(metric=="neutral")%>%
+            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
+                  scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Neutral Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+phylo.sp <- alpha_div %>%
+            filter(metric=="phylo")%>%
+            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
+                  scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+ggarrange(neutral.sp, phylo.sp, #+ rremove("x.text"), 
+          ncol = 1, nrow = 3)
+```
+
+#functional differences
+```{r}
+# Aggregate bundle-level GIFTs into the compound level
+GIFTs_elements <- to.elements(genome_gifts, GIFT_db)
+GIFTs_elements_filtered <- GIFTs_elements[rownames(GIFTs_elements) %in% rownames(genome_counts), ]
+GIFTs_elements_filtered <- as.data.frame(GIFTs_elements_filtered) %>%
+  select_if(~ !is.numeric(.) || sum(.) != 0)
+
+elements <- GIFTs_elements_filtered %>%
+  as.data.frame()
+
+# Aggregate element-level GIFTs into the function level
+GIFTs_functions <- to.functions(GIFTs_elements_filtered, GIFT_db)
+functions <- GIFTs_functions %>%
+  as.data.frame()
+
+# Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs
+GIFTs_domains <- to.domains(GIFTs_functions, GIFT_db)
+domains <- GIFTs_domains %>%
+  as.data.frame()
+
+# Get community-weighed average GIFTs per sample
+GIFTs_elements_community <- to.community(GIFTs_elements_filtered, tss(genome_counts_filt), GIFT_db)
+GIFTs_functions_community <- to.community(GIFTs_functions,tss(genome_counts_filt), GIFT_db)
+GIFTs_domains_community <- to.community(GIFTs_domains,tss(genome_counts_filt), GIFT_db)
+```
+
+
+```{r}
+GIFTs_functions_community %>%
+    as.data.frame() %>%
+    rownames_to_column(var="sample") %>%
+    pivot_longer(!sample,names_to="trait",values_to="gift") %>%
+    left_join(sample_metadata, by = join_by(sample == sample)) %>%
+    ggplot(aes(x=trait,y=sample,fill=gift)) +
+        geom_tile(colour="white", linewidth=0.2)+
+        scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
+        facet_grid(species ~ ., scales="free",space="free")
+```
+head(GIFT_db)
+```{r}
+# Averaged at the function level (each function is weighed equally)
+rowMeans(GIFTs_functions)
+
+# Averaged at the domain level (each domain is weighed equally)
+rowMeans(GIFTs_domains)
+```
+
+
+#test
+```{r}
+GIFTs_functions_community_tt <- GIFTs_functions_community %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  separate(sample, into = c("individual", "species"), sep = "\\.") %>%
+  pivot_longer(-c(individual, species), names_to = "trait", values_to = "value") %>%
+  group_by(trait) %>%
+  mutate(model_result = list(lmerTest::lmer(value ~ species + (1 | individual)))) %>%
+  ungroup() %>%
+  select(trait, model_result) %>%
+  unique() %>%
+  mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(estimate))) %>%
+  mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(p.value))) %>%
+  mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
+  left_join(GIFT_db %>% select(Code_function, Function) %>% unique(), by = join_by(trait == Code_function)) %>%
+  rename(id = trait, trait = Function) %>%
+  select(id, trait, estimate, p_value_adj)
+
+GIFTs_functions_community_tt %>% 
+  tt() |> 
+  style_tt(
+    i = which(GIFTs_functions_community_tt$estimate < 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+    background = "#E5D5B1"
+  ) |> 
+  style_tt(
+    i = which(GIFTs_functions_community_tt$estimate > 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+    background = "#B7BCCE"
+  )
+
+```
+
+
