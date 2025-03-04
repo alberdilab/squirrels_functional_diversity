@@ -142,7 +142,7 @@ ggarrange(neutral.sp, phylo.sp, #+ rremove("x.text"),
 #functional differences
 ```{r}
 # Aggregate bundle-level GIFTs into the compound level
-GIFTs_elements <- to.elements(genome_gifts, GIFT_db)
+GIFTs_elements <- to.elements(genome_gifts, GIFT_db2)
 GIFTs_elements_filtered <- GIFTs_elements[rownames(GIFTs_elements) %in% rownames(genome_counts), ]
 GIFTs_elements_filtered <- as.data.frame(GIFTs_elements_filtered) %>%
   select_if(~ !is.numeric(.) || sum(.) != 0)
@@ -151,21 +151,24 @@ elements <- GIFTs_elements_filtered %>%
   as.data.frame()
 
 # Aggregate element-level GIFTs into the function level
-GIFTs_functions <- to.functions(GIFTs_elements_filtered, GIFT_db)
+GIFTs_functions <- to.functions(GIFTs_elements_filtered, GIFT_db2)
 functions <- GIFTs_functions %>%
   as.data.frame()
 
 # Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs
-GIFTs_domains <- to.domains(GIFTs_functions, GIFT_db)
+GIFTs_domains <- to.domains(GIFTs_functions, GIFT_db2)
 domains <- GIFTs_domains %>%
   as.data.frame()
 
 # Get community-weighed average GIFTs per sample
-GIFTs_elements_community <- to.community(GIFTs_elements_filtered, tss(genome_counts_filt), GIFT_db)
-GIFTs_functions_community <- to.community(GIFTs_functions,tss(genome_counts_filt), GIFT_db)
-GIFTs_domains_community <- to.community(GIFTs_domains,tss(genome_counts_filt), GIFT_db)
+GIFTs_elements_community <- to.community(GIFTs_elements_filtered, tss(genome_counts_filt), GIFT_db2)
+GIFTs_functions_community <- to.community(GIFTs_functions,tss(genome_counts_filt), GIFT_db2)
+GIFTs_domains_community <- to.community(GIFTs_domains,tss(genome_counts_filt), GIFT_db2)
 ```
 
+```{r}
+
+```
 
 ```{r}
 GIFTs_functions_community %>%
@@ -178,7 +181,7 @@ GIFTs_functions_community %>%
         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
         facet_grid(species ~ ., scales="free",space="free")
 ```
-head(GIFT_db)
+
 ```{r}
 # Averaged at the function level (each function is weighed equally)
 rowMeans(GIFTs_functions)
@@ -219,5 +222,69 @@ GIFTs_functions_community_tt %>%
   )
 
 ```
+#metabolic avegerage plots
+```{r}
+#prep
+GIFTs_domains_community <- GIFTs_domains_community %>%
+  as.data.frame() %>%
+  left_join(alpha, by="sample") %>%
+  mutate(metabolic_function = (Biosynthesis + Degradation) / 2)
+
+GIFTs_domains_diversity <- GIFTs_domains_community %>% 
+  as.data.frame() %>% 
+  left_join(alpha, by="sample") %>% 
+  left_join(sample_metadata, by="sample")%>% 
+select(-ends_with(".y")) %>% 
+  rename(richness = richness.x, neutral=neutral.x, phylo=phylo.x, mapped=mapped.x, total=total.x) 
+
+
+
+
+
+
+ggplot(GIFTs_domains_diversity, aes(x=Biosynthesis,y=neutral, color=species)) +
+  geom_point() +
+  geom_smooth(method="lm")
+
+
+
+```
+
+
+```{r}
+#plot: metabolic function and neutral diversity
+
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()
+```
+```{r}
+#plot: metabolic function and phylogenetic diversity
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()
+```
+
+```{r}
+#plot: sciurus carolinensis, linear model
+GIFTs_domains_diversity <- GIFTs_domains_diversity %>% 
+     filter(species=="Sciurus carolinensis")
+
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+```{r}
+#plot: sciurus vulgrais, linear model
+GIFTs_domains_diversity <- GIFTs_domains_diversity %>% 
+     filter(species=="Sciurus vulgaris")
+
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
 
 

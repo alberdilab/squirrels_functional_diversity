@@ -45,6 +45,15 @@ Once the R project has been created, follow the instructions and code chunks sho
 
 The following R packages are required for the data analysis.
 
+devtools::install_github("https://github.com/pmartinezarbizu/pairwiseAdonis.git/pairwiseAdonis")
+
+BiocManager::install("ANCOMBC")
+
+install.packages("pairwiseAdonis")
+
+install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+
+
 ```{r load_libraries, warning=FALSE, comments="", message=FALSE}
 # Base
 library(R.utils)
