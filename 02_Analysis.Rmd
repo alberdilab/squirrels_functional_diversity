@@ -228,7 +228,7 @@ GIFTs_functions_community_tt %>%
 GIFTs_domains_community <- GIFTs_domains_community %>%
   as.data.frame() %>%
   left_join(alpha, by="sample") %>%
-  mutate(metabolic_function = (Biosynthesis + Degradation) / 2)
+  mutate(metabolic_function = (Biosynthesis + Degradation) / 2) %>%
 
 GIFTs_domains_diversity <- GIFTs_domains_community %>% 
   as.data.frame() %>% 
@@ -237,6 +237,7 @@ GIFTs_domains_diversity <- GIFTs_domains_community %>%
 select(-ends_with(".y")) %>% 
   rename(richness = richness.x, neutral=neutral.x, phylo=phylo.x, mapped=mapped.x, total=total.x) 
 
+ 
 
 
 
@@ -253,16 +254,23 @@ ggplot(GIFTs_domains_diversity, aes(x=Biosynthesis,y=neutral, color=species)) +
 
 ```{r}
 #plot: metabolic function and neutral diversity
-
+GIFTs_domains_diversity <- GIFTs_domains_community %>% 
+  as.data.frame() %>% 
+  left_join(alpha, by="sample") %>% 
+  left_join(sample_metadata, by="sample")%>% 
+select(-ends_with(".y")) %>% 
+  rename(richness = richness.x, neutral=neutral.x, phylo=phylo.x, mapped=mapped.x, total=total.x) 
 ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
-  geom_point()
+  geom_point()+
+  geom_smooth(method = "lm")
 ```
 ```{r}
 #plot: metabolic function and phylogenetic diversity
 ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
-  geom_point()
+  geom_point()+
+  geom_smooth(method = "lm")
 ```
 
 ```{r}
@@ -270,7 +278,7 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
 GIFTs_domains_diversity <- GIFTs_domains_diversity %>% 
      filter(species=="Sciurus carolinensis")
 
-ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
@@ -280,11 +288,143 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=specie
 GIFTs_domains_diversity <- GIFTs_domains_diversity %>% 
      filter(species=="Sciurus vulgaris")
 
-ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
 ```
+# Individual metabolic traits
+```{r}
+GIFTs_functions_community_collected <- GIFTs_functions_community_tt %>% 
+  as.data.frame() %>% 
+  left_join(GIFTs_domains_diversity, by="sample")
 
+#B01
+ggplot(GIFTs_functions_community_collected, aes(x=B01,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+
+```
+```{r}
+#B02
+ggplot(GIFTs_functions_community_collected, aes(x=B02,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B03
+ggplot(GIFTs_functions_community_collected, aes(x=B03,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B04
+ggplot(GIFTs_functions_community_collected, aes(x=B04,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B06
+ggplot(GIFTs_functions_community_collected, aes(x=B06,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B07
+ggplot(GIFTs_functions_community_collected, aes(x=B07,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B08
+ggplot(GIFTs_functions_community_collected, aes(x=B08,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B09
+ggplot(GIFTs_functions_community_collected, aes(x=B09,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B10
+ggplot(GIFTs_functions_community_collected, aes(x=B10,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#B11
+ggplot(GIFTs_functions_community_collected, aes(x=B11,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+
+```{r}
+#D01
+ggplot(GIFTs_functions_community_collected, aes(x=D01,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D02
+ggplot(GIFTs_functions_community_collected, aes(x=D02,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D03
+ggplot(GIFTs_functions_community_collected, aes(x=D03,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D05
+ggplot(GIFTs_functions_community_collected, aes(x=D05,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D06
+ggplot(GIFTs_functions_community_collected, aes(x=D06,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D07
+ggplot(GIFTs_functions_community_collected, aes(x=D07,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D08
+ggplot(GIFTs_functions_community_collected, aes(x=D08,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
+```{r}
+#D09
+ggplot(GIFTs_functions_community_collected, aes(x=D09,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+geom_point()+
+  geom_smooth(method="lm")
+```
 
 
