@@ -293,6 +293,22 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
   geom_point()+
   geom_smooth(method = "lm")
 ```
+```{r}
+#Biosynthesis
+ggplot(GIFTs_domains_diversity, aes(x=Biosynthesis,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+```{r}
+#Degradation
+ggplot(GIFTs_domains_diversity, aes(x=Degradation,y=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
+
 # Individual metabolic traits
 ```{r}
 GIFTs_functions_community_collected <- GIFTs_functions_community_tt %>% 
