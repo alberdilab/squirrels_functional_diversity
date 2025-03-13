@@ -35,7 +35,7 @@ ggplot(outliers, aes(x=sample,y=count, fill=phylum, group=phylum)) + #grouping e
    labs(fill="Phylum",y = "Relative abundance",x="Samples")
 ```
 ```{r}
-#barplot phylum overview
+#barplot phyulum red squirrels
 genome_sample_info <- sample_metadata %>%
   left_join(genome_counts_by_host, by=join_by(sample==sample)) %>%
   as.data.frame() %>%
@@ -62,6 +62,7 @@ ggplot(genome_sample_info, aes(x=sample,y=count, fill=phylum, group=phylum)) + #
 ```
 
 ```{r}
+#barplot phylum overview
 genome_sample_info <- sample_metadata %>%
   left_join(genome_counts_by_host, by=join_by(sample==sample)) %>%
   as.data.frame()
@@ -84,5 +85,116 @@ ggplot(genome_sample_info, aes(x=sample,y=count, fill=phylum, group=phylum)) + #
     axis.text.x = element_blank(), axis.ticks.x = element_blank(),
           axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
    labs(fill="Phylum",y = "Relative abundance",x="Samples")
+```
+```{r}
+#outlier barplot family
+ggplot(outliers, aes(x=sample,y=count, fill=phylum, group=family)) + #grouping enables keeping the same sorting of taxonomic units
+    geom_bar(stat="identity", colour="white", linewidth=0.1) + #plot stacked bars with white borders
+    scale_fill_manual(values=phylum_colors) +
+ #   facet_nested(. ~ region+diet,  scales="free") + #facet per day and treatment
+    guides(fill = guide_legend(ncol = 1)) +
+    theme(
+          axis.title.x = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 12, lineheight = 0.6),
+    strip.placement = "outside",
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
+   labs(fill="Family",y = "Relative abundance",x="Samples")
+```
+
+```{r}
+#family summary outliers (prevalence)
+genome_counts_by_host %>%
+  filter(sample %in% c("EHI01470", "EHI01483","EHI01500", "EHI02240", "EHI02274","EHI02291")) %>%
+ group_by(host_sp, sample, phylum, family) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum, family) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%
+  paged_table()
+```
+
+```{r}
+#family summary overall (abundance)
+
+genome_counts_by_host %>%
+  group_by(host_sp, sample, phylum, family) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum, family) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%
+  paged_table()
+
+```
+
+
+```{r}
+#outlier barplot genus 
+ggplot(outliers, aes(x=sample,y=count, fill=phylum, group=genus)) + #grouping enables keeping the same sorting of taxonomic units
+    geom_bar(stat="identity", colour="white", linewidth=0.1) + #plot stacked bars with white borders
+    scale_fill_manual(values=phylum_colors) +
+ #   facet_nested(. ~ region+diet,  scales="free") + #facet per day and treatment
+    guides(fill = guide_legend(ncol = 1)) +
+    theme(
+          axis.title.x = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 12, lineheight = 0.6),
+    strip.placement = "outside",
+    axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
+   labs(fill="Genus",y = "Relative abundance",x="Samples")
+```
+
+```{r}
+#Genus summary outliers (abundance)
+genome_counts_by_host %>%
+  filter(sample %in% c("EHI01470", "EHI01483","EHI01500", "EHI02240", "EHI02274","EHI02291")) %>%
+ group_by(host_sp, sample, phylum, genus) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum, genus) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%
+  paged_table()
+```
+
+```{r}
+#genus summary overall (abundance)
+
+genome_counts_by_host %>%
+  group_by(host_sp, sample, phylum, genus) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum, genus) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%
+  paged_table()
 ```
 

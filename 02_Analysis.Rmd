@@ -260,6 +260,7 @@ GIFTs_domains_diversity <- GIFTs_domains_community %>%
   left_join(sample_metadata, by="sample")%>% 
 select(-ends_with(".y")) %>% 
   rename(richness = richness.x, neutral=neutral.x, phylo=phylo.x, mapped=mapped.x, total=total.x) 
+
 ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
@@ -282,6 +283,8 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "pearson")
 ```
 ```{r}
 #plot: sciurus vulgrais, linear model
@@ -292,6 +295,8 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "pearson")
 ```
 ```{r}
 #Biosynthesis
@@ -441,6 +446,84 @@ ggplot(GIFTs_functions_community_collected, aes(x=D09,y=phylo, color=species))+s
                   scale_fill_manual(values=paste0(squirrel_colors)) +
 geom_point()+
   geom_smooth(method="lm")
+```
+
+```{r}
+#correlations of traits
+
+# Example: Assuming df contains phylo and the selected traits, and 'species' column exists
+traits <- c("B01", "B02", "B03", "B04", "B06", "B07", "B08", "B09", 
+            "B10", "B11", "D01", "D02", "D03", "D05", "D06", "D07", "D08", "D09")
+
+# Create an empty dataframe to store results
+correlation_results <- data.frame(Trait = rep(traits, each = length(unique(GIFTs_functions_community_collected$species))),
+                                  Species = rep(unique(GIFTs_functions_community_collected$species), times = length(traits)), 
+                                  Correlation = NA, P_value = NA, Significance = NA)
+
+# Loop through each trait
+for (i in seq_along(traits)) {
+  trait <- traits[i]
+  
+  # Loop through each species
+  for (species_name in unique(GIFTs_functions_community_collected$species)) {
+    # Subset the data for the current species
+    species_data <- GIFTs_functions_community_collected %>% filter(species == species_name)
+    
+    # Compute the correlation between phylo and the current trait for the current species
+    test <- cor.test(species_data$phylo, species_data[[trait]], method = "pearson")  # Change to "spearman" if needed
+    
+    # Store the correlation, p-value, and significance symbol
+    correlation_results$Correlation[correlation_results$Trait == trait & correlation_results$Species == species_name] <- test$estimate
+    correlation_results$P_value[correlation_results$Trait == trait & correlation_results$Species == species_name] <- test$p.value
+    
+    # Add a significance symbol or label based on the p-value
+    correlation_results$Significance[correlation_results$Trait == trait & correlation_results$Species == species_name] <- 
+      ifelse(test$p.value < 0.05, "*", "")
+  }
+}
+
+# Print the correlation table with significance symbol
+print(correlation_results)
+
+
+
+```
+
+
+```{r}
+#genome size and metabolic capacity plot
+# Ensure you have a dataframe with genome sizes and abundances
+# Example: genome_metadata contains genome sizes, and genome_counts contains abundance data
+
+CWA_genome_size <- genome_counts_by_host %>%
+  group_by(sample) %>%  # Group by sample to calculate per sample
+  summarise(cwa_genome_size = sum(corrected_size * count)) %>%  # Weighted average
+  ungroup()
+
+merged_data <- GIFTs_functions_community_collected %>% 
+  as.data.frame() %>% 
+  left_join(CWA_genome_size, by="sample")
+  
+  ggplot(merged_data, aes(x=metabolic_function, y=cwa_genome_size, color=species)) + 
+  scale_color_manual(values=squirrel_colors) +
+  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point() +
+  geom_smooth(method="lm")
+
+
+```
+
+```{r}
+#correlation tests
+merged_data <- merged_data%>%
+  filter(species=="Sciurus vulgaris")
+
+cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "pearson")
+
+merged_data <- merged_data%>%
+  filter(species=="Sciurus carolinensis")
+
+cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "pearson")
 ```
 
 
