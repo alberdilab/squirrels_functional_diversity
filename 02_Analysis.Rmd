@@ -492,8 +492,6 @@ print(correlation_results)
 
 ```{r}
 #genome size and metabolic capacity plot
-# Ensure you have a dataframe with genome sizes and abundances
-# Example: genome_metadata contains genome sizes, and genome_counts contains abundance data
 
 CWA_genome_size <- genome_counts_by_host %>%
   group_by(sample) %>%  # Group by sample to calculate per sample
@@ -524,6 +522,8 @@ merged_data <- merged_data%>%
   filter(species=="Sciurus carolinensis")
 
 cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "pearson")
+
+
 ```
 
 

@@ -108,8 +108,8 @@ ggplot(outliers, aes(x=sample,y=count, fill=phylum, group=family)) + #grouping e
 ```
 
 ```{r}
-#family summary outliers (prevalence)
-genome_counts_by_host %>%
+#family summary outliers (abundance)
+abundance_outliers_f<- genome_counts_by_host %>%
   filter(sample %in% c("EHI01470", "EHI01483","EHI01500", "EHI02240", "EHI02274","EHI02291")) %>%
  group_by(host_sp, sample, phylum, family) %>%
   summarise(sum_abundance = sum(count), .groups = "drop") %>%
@@ -127,7 +127,7 @@ genome_counts_by_host %>%
 ```{r}
 #family summary overall (abundance)
 
-genome_counts_by_host %>%
+abundance_overall_f <- genome_counts_by_host %>%
   group_by(host_sp, sample, phylum, family) %>%
   summarise(sum_abundance = sum(count), .groups = "drop") %>%
   group_by(host_sp, phylum, family) %>%
@@ -140,6 +140,25 @@ genome_counts_by_host %>%
   arrange(host_sp, phylum, desc(mean_abundance)) %>%
   paged_table()
 
+```
+
+```{r}
+#statistical test
+# Check normality for outliers
+shapiro.test(abundance_outliers_f$mean_abundance)
+
+# Check normality for normal samples (red+grey)
+shapiro.test(abundance_overall_f$mean_abundance)
+
+wilcox.test(abundance_outliers_f$mean_abundance, abundance_overall_f$mean_abundance)
+
+#check for normal samples (red only)
+abundance_overall_fr <-abundance_overall_f %>%
+  filter(host_sp=="Sciurus vulgaris")
+
+shapiro.test(abundance_overall_fr$mean_abundance)
+
+wilcox.test(abundance_outliers_f$mean_abundance, abundance_overall_fr$mean_abundance)
 ```
 
 
@@ -166,7 +185,7 @@ ggplot(outliers, aes(x=sample,y=count, fill=phylum, group=genus)) + #grouping en
 
 ```{r}
 #Genus summary outliers (abundance)
-genome_counts_by_host %>%
+abundance_outliers_g<- genome_counts_by_host %>%
   filter(sample %in% c("EHI01470", "EHI01483","EHI01500", "EHI02240", "EHI02274","EHI02291")) %>%
  group_by(host_sp, sample, phylum, genus) %>%
   summarise(sum_abundance = sum(count), .groups = "drop") %>%
@@ -184,7 +203,7 @@ genome_counts_by_host %>%
 ```{r}
 #genus summary overall (abundance)
 
-genome_counts_by_host %>%
+abundance_overall_g<- genome_counts_by_host %>%
   group_by(host_sp, sample, phylum, genus) %>%
   summarise(sum_abundance = sum(count), .groups = "drop") %>%
   group_by(host_sp, phylum, genus) %>%
@@ -200,6 +219,21 @@ genome_counts_by_host %>%
 
 
 ```{r}
+#statistical test
+# Check normality for outliers
+shapiro.test(abundance_outliers_g$mean_abundance)
 
+# Check normality for normal samples (red+grey)
+shapiro.test(abundance_overall_g$mean_abundance)
+
+wilcox.test(abundance_outliers_g$mean_abundance, abundance_overall_g$mean_abundance)
+
+#check for normal samples (red only)
+abundance_overall_gr <-abundance_overall_g %>%
+  filter(host_sp=="Sciurus vulgaris")
+
+shapiro.test(abundance_overall_gr$mean_abundance)
+
+wilcox.test(abundance_outliers_g$mean_abundance, abundance_overall_gr$mean_abundance)
 ```
 
