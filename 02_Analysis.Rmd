@@ -284,7 +284,7 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
   geom_point()+
   geom_smooth(method = "lm")
 
-cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "pearson")
+cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "spearman")
 ```
 ```{r}
 #plot: sciurus vulgrais, linear model
@@ -296,7 +296,7 @@ ggplot(GIFTs_domains_diversity, aes(x=metabolic_function,y=phylo, color=species)
   geom_point()+
   geom_smooth(method = "lm")
 
-cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "pearson")
+cor.test(GIFTs_domains_diversity$metabolic_function,GIFTs_domains_diversity$phylo, method = "spearman")
 ```
 ```{r}
 #Biosynthesis
@@ -304,6 +304,12 @@ ggplot(GIFTs_domains_diversity, aes(x=Biosynthesis,y=phylo, color=species))+scal
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+cor_results_B <- GIFTs_domains_diversity %>%
+  group_by(species) %>%
+  summarise(correlation = cor.test(Biosynthesis, phylo, method = "spearman")$estimate,
+            p_value = cor.test(Biosynthesis, phylo, method = "spearman")$p.value)
+
 ```
 ```{r}
 #Degradation
@@ -311,6 +317,11 @@ ggplot(GIFTs_domains_diversity, aes(x=Degradation,y=phylo, color=species))+scale
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+cor_results_D <- GIFTs_domains_diversity %>%
+  group_by(species) %>%
+  summarise(correlation = cor.test(Degradation, phylo, method = "spearman")$estimate,
+            p_value = cor.test(Degradation, phylo, method = "spearman")$p.value)
 ```
 
 
@@ -470,7 +481,7 @@ for (i in seq_along(traits)) {
     species_data <- GIFTs_functions_community_collected %>% filter(species == species_name)
     
     # Compute the correlation between phylo and the current trait for the current species
-    test <- cor.test(species_data$phylo, species_data[[trait]], method = "pearson")  # Change to "spearman" if needed
+    test <- cor.test(species_data$phylo, species_data[[trait]], method = "spearman")  # Change to "spearman" if needed
     
     # Store the correlation, p-value, and significance symbol
     correlation_results$Correlation[correlation_results$Trait == trait & correlation_results$Species == species_name] <- test$estimate
@@ -516,14 +527,82 @@ merged_data <- GIFTs_functions_community_collected %>%
 merged_data <- merged_data%>%
   filter(species=="Sciurus vulgaris")
 
-cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "pearson")
+cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "spearman")
 
 merged_data <- merged_data%>%
   filter(species=="Sciurus carolinensis")
 
-cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "pearson")
+cor.test(merged_data$metabolic_function, merged_data$cwa_genome_size, method = "spearman")
 
 
 ```
 
+```{r}
+#CWA based on kegg
+squirrels_merged_kegg <- read_csv2("data/squirrels_merged_kegg.csv")
+
+CWA_kegg <- genome_counts_by_host %>%
+  left_join(squirrels_merged_kegg, by=join_by(genome==genome))  %>%
+  as.data.frame()
+
+trait_cols <- grep("^M[0-9]+", names(CWA_kegg), value = TRUE)  # Find all trait columns
+
+# Process in chunks of 50 columns at a time
+chunk_size <- 50
+for (i in seq(1, length(trait_cols), by = chunk_size)) {
+  chunk <- trait_cols[i:min(i + chunk_size - 1, length(trait_cols))]
+  
+  temp_result <- melt(CWA_kegg, id.vars = c("sample", "count"), 
+                      measure.vars = chunk, 
+                      variable.name = "trait", value.name = "trait_value")[,
+                      .(CWA_trait = sum(as.numeric(trait_value) * count, na.rm = TRUE)), 
+                      by = .(sample, trait)]
+  
+  if (i == 1) {
+    CWA_traits <- temp_result
+  } else {
+    CWA_traits <- rbind(CWA_traits, temp_result)
+  }
+
+ 
+library(data.table)
+
+setDT(CWA_traits)  # Convert to data.table for efficiency
+
+chunk_size <- 5000  # Adjust based on available RAM
+num_chunks <- ceiling(nrow(CWA_traits) / chunk_size)
+
+for (i in seq_len(num_chunks)) {
+  start_row <- (i - 1) * chunk_size + 1
+  end_row <- min(i * chunk_size, nrow(CWA_traits))
+  
+  # Compute row-wise mean only for the subset
+  CWA_traits[start_row:end_row, CWA_trait := rowMeans(.SD, na.rm = TRUE), 
+             .SDcols = patterns("^converted_M")]
+  
+  cat("Processed chunk", i, "of", num_chunks, "\n")  # Progress update
+}
+
+# Ensure that changes persist
+CWA_traits <- copy(CWA_traits)
+
+# Print summary to verify completion
+summary(CWA_traits$CWA_trait)
+
+
+  CWA_merged_data <- CWA_traits %>%
+    left_join(CWA_genome_size, by="sample")
+ 
+
+
+  ggplot(CWA_merged_data, aes(x = CWA_trait, y = CWA_genome_size, color=species)) + 
+  scale_color_manual(values=squirrel_colors) +
+  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point() +
+  geom_smooth(method="lm")
+  labs(x = "Community Weighted Average of Traits",
+       y = "CWA Genome Size",
+       title = "CWA Traits vs. CWA Genome Size")
+
+```
 
