@@ -237,3 +237,153 @@ shapiro.test(abundance_overall_gr$mean_abundance)
 wilcox.test(abundance_outliers_g$mean_abundance, abundance_overall_gr$mean_abundance)
 ```
 
+```{r}
+#figure
+library(ggplot2)
+library(patchwork)
+
+# Plot 1: Outlier barplot
+p1 <- ggplot(outliers, aes(x = sample, y = count, fill = phylum, group = phylum)) +
+  geom_bar(stat = "identity", colour = "white", linewidth = 0.1) +
+  scale_fill_manual(values = phylum_colors) +
+  guides(fill = guide_legend(ncol = 1)) +
+  theme(
+    axis.title.x = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 12, lineheight = 0.6),
+    strip.placement = "outside",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")
+  ) +
+  labs(fill = "Phylum", y = "Relative abundance", x = "Sample", title = "Outlier Samples")
+
+# Plot 2: Red squirrel barplot
+genome_sample_info <- sample_metadata %>%
+  left_join(genome_counts_by_host, by = join_by(sample == sample)) %>%
+  filter(species.x == "Sciurus vulgaris")
+
+p2 <- ggplot(genome_sample_info, aes(x = sample, y = count, fill = phylum, group = phylum)) +
+  geom_bar(stat = "identity", colour = "white", linewidth = 0.1) +
+  scale_fill_manual(values = phylum_colors) +
+  theme(
+    axis.title.x = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(size = 12, lineheight = 0.6),
+    strip.placement = "outside",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
+    legend.position = "none"  
+  ) +
+  labs(fill = "Phylum", y = "Relative abundance", x = "Sample", title = "Red Squirrel Samples")
+
+
+# Combine the two plots vertically
+combined_plot <- p1 / p2
+
+# Show combined plot
+combined_plot
+
+```
+
+```{r}
+#phylum summary outliers (abundance)
+abundance_outliers_p<- genome_counts_by_host %>%
+  filter(sample %in% c("EHI01470", "EHI01483","EHI01500", "EHI02240", "EHI02274","EHI02291")) %>%
+ group_by(host_sp, sample, phylum) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance))
+  
+```
+
+```{r}
+#phylum summary overall (abundance)
+abundance_overall_p<- genome_counts_by_host %>%
+ group_by(host_sp, sample, phylum) %>%
+  summarise(sum_abundance = sum(count), .groups = "drop") %>%
+  group_by(host_sp, phylum) %>%
+  summarise(mean_abundance = mean(sum_abundance),
+            sd = sd(sum_abundance), .groups = "drop") %>%
+  arrange(host_sp, phylum, desc(mean_abundance)) %>%  # Sort within each host_sp & phylum by abundance
+  group_by(host_sp, phylum) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per phylum
+  ungroup() %>%
+  arrange(host_sp, phylum, desc(mean_abundance))
+```
+
+```{r}
+#statistical test
+# Check normality for outliers
+shapiro.test(abundance_outliers_p$mean_abundance)
+
+# Check normality for normal samples (red+grey)
+shapiro.test(abundance_overall_p$mean_abundance)
+
+wilcox.test(abundance_outliers_p$mean_abundance, abundance_overall_p$mean_abundance)
+
+#check for normal samples (red only)
+abundance_overall_pr <-abundance_overall_g %>%
+  filter(host_sp=="Sciurus vulgaris")
+
+shapiro.test(abundance_overall_pr$mean_abundance)
+
+wilcox.test(abundance_outliers_p$mean_abundance, abundance_overall_pr$mean_abundance)
+```
+
+```{r}
+#outlier tests
+outliers_GIFTs <- GIFTs_domains_diversity %>%
+  filter(sample %in% c("EHI01470", "EHI01483", "EHI01500", "EHI02240", "EHI02274", "EHI02291"))
+
+#statistical test
+# Check normality for outliers
+shapiro.test(outliers_GIFTs$metabolic_function)
+
+# Check normality for normal samples (red+grey)
+shapiro.test(GIFTs_domains_diversity$metabolic_function)
+
+wilcox.test(outliers_GIFTs$metabolic_function, GIFTs_domains_diversity$metabolic_function)
+
+#check for normal samples (red only)
+GIFTs_red <-GIFTs_domains_diversity %>%
+  filter(species=="Sciurus vulgaris")
+
+shapiro.test(GIFTs_red$metabolic_function)
+
+wilcox.test(outliers_GIFTs$metabolic_function, GIFTs_red$metabolic_function)
+```
+
+```{r}
+#plot
+samples_no_outliers <- GIFTs_domains_diversity %>%
+  filter(!sample %in% c("EHI01470", "EHI01483", "EHI01500", "EHI02240", "EHI02274", "EHI02291"))%>%
+  as.data.frame()
+
+  ggplot(samples_no_outliers,aes(y=metabolic_function,x=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+  cor_results_no_outliers <- samples_no_outliers %>%
+  group_by(species) %>%
+  summarise(correlation = cor.test(Degradation, phylo, method = "spearman")$estimate,
+            p_value = cor.test(Degradation, phylo, method = "spearman")$p.value)
+```
+
+

@@ -681,6 +681,15 @@ genomes_by_species %>%
   tt()
 ```
 
+```{r}
+#location
+n_distinct(sample_metadata$geographic_location)
+
+sample_metadata %>%
+  group_by(species, geographic_location) %>%
+  summarise(distinct_squirrels = n_distinct(animal)) %>%
+  tt()
+```
 
 
 

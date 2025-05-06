@@ -107,36 +107,56 @@ alpha_div <- alpha %>%
   )
   
 ```
+```{r}
+alpha_div %>%
+  filter(metric %in% c("neutral", "phylo")) %>%
+  group_by(metric, species) %>%
+  summarise(shapiro = list(shapiro.test(value)), .groups = "drop") %>%
+  mutate(W = map_dbl(shapiro, "statistic"),
+         p_value = map_dbl(shapiro, "p.value"))
+```
+
 
 #Alpha diversity plots
 ```{r alpha_sp_plots, fig.dim = c(8, 10)}
+# Run t-tests
+neutral_test <- wilcox.test(value ~ species, data = alpha_div %>% filter(metric == "neutral"))
+phylo_test <- wilcox.test(value ~ species, data = alpha_div %>% filter(metric == "phylo"))
+
+# Format results as text for annotation
+neutral_label <- paste0("w = ", round(neutral_test$statistic, 2),
+                        ", p = ", formatC(neutral_test$p.value, format = "e", digits = 2))
+phylo_label <- paste0("w = ", round(phylo_test$statistic, 2),
+                      ", p = ", formatC(phylo_test$p.value, format = "e", digits = 2))
+
+# Plot with annotation
 neutral.sp <- alpha_div %>%
-            filter(metric=="neutral")%>%
-            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
-                  scale_color_manual(values=squirrel_colors) +
-                  scale_fill_manual(values=paste0(squirrel_colors)) +
-                  #stat_compare_means() +
-                  theme_classic() +
-                  labs(y = "Neutral Hill numbers") +
-                  theme(
-                      legend.position = "none",
-                      axis.title.x = element_blank())
+  filter(metric == "neutral") %>%
+  ggboxplot(x = "species", y = "value", color = "species", fill = "white", add = "jitter", alpha = 0.5) +
+  scale_color_manual(values = squirrel_colors) +
+  scale_fill_manual(values = paste0(squirrel_colors)) +
+  annotate("text", x = 1.5, y = 200, label = neutral_label, size = 4) +
+  theme_classic() +
+  labs(y = "Neutral Hill numbers") +
+  theme(legend.position = "none", axis.title.x = element_blank())
+
+
 
 phylo.sp <- alpha_div %>%
-            filter(metric=="phylo")%>%
-            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
-                  scale_color_manual(values=squirrel_colors) +
-                  scale_fill_manual(values=paste0(squirrel_colors)) +
-                  #stat_compare_means() +
-                  theme_classic() +
-                  labs(y = "Phylogenetic Hill numbers") +
-                  theme(
-                      legend.position = "none",
-                      axis.title.x = element_blank())
+  filter(metric == "phylo") %>%
+  ggboxplot(x = "species", y = "value", color = "species", fill = "white", add = "jitter", alpha = 0.5) +
+  scale_color_manual(values = squirrel_colors) +
+  scale_fill_manual(values = paste0(squirrel_colors)) +
+  annotate("text", x = 1.5, y = 10, label = phylo_label, size = 4) +
+  theme_classic() +
+  labs(y = "Phylogenetic Hill numbers") +
+  theme(legend.position = "none", axis.title.x = element_blank())
 
 
-ggarrange(neutral.sp, phylo.sp, #+ rremove("x.text"), 
-          ncol = 1, nrow = 3)
+ggarrange(neutral.sp, phylo.sp, ncol = 1, nrow = 2)
+
+
+
 ```
 
 #functional differences
@@ -181,6 +201,18 @@ GIFTs_functions_community %>%
         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
         facet_grid(species ~ ., scales="free",space="free")
 ```
+```{r}
+# Perform Wilcoxon rank-sum test (Mann-Whitney U test) between the two species
+wilcox.test(metabolic_capacity ~ species, data = GIFTs_domains_diversity)
+
+GIFTs_domains_diversity %>%
+  group_by(species) %>%
+  summarise(
+    mean = mean(metabolic_function, na.rm = TRUE),
+    sd = sd(metabolic_capacity, na.rm = TRUE)
+  )
+```
+
 
 ```{r}
 # Averaged at the function level (each function is weighed equally)
@@ -191,37 +223,7 @@ rowMeans(GIFTs_domains)
 ```
 
 
-#test
-```{r}
-GIFTs_functions_community_tt <- GIFTs_functions_community %>%
-  as.data.frame() %>%
-  rownames_to_column("sample") %>%
-  separate(sample, into = c("individual", "species"), sep = "\\.") %>%
-  pivot_longer(-c(individual, species), names_to = "trait", values_to = "value") %>%
-  group_by(trait) %>%
-  mutate(model_result = list(lmerTest::lmer(value ~ species + (1 | individual)))) %>%
-  ungroup() %>%
-  select(trait, model_result) %>%
-  unique() %>%
-  mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(estimate))) %>%
-  mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(p.value))) %>%
-  mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
-  left_join(GIFT_db %>% select(Code_function, Function) %>% unique(), by = join_by(trait == Code_function)) %>%
-  rename(id = trait, trait = Function) %>%
-  select(id, trait, estimate, p_value_adj)
 
-GIFTs_functions_community_tt %>% 
-  tt() |> 
-  style_tt(
-    i = which(GIFTs_functions_community_tt$estimate < 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
-    background = "#E5D5B1"
-  ) |> 
-  style_tt(
-    i = which(GIFTs_functions_community_tt$estimate > 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
-    background = "#B7BCCE"
-  )
-
-```
 #metabolic avegerage plots
 ```{r}
 #prep
@@ -229,12 +231,14 @@ GIFTs_domains_community <- GIFTs_domains_community %>%
   as.data.frame() %>%
   left_join(alpha, by="sample") %>%
   mutate(metabolic_function = (Biosynthesis + Degradation) / 2) %>%
+  mutate(metabolic_capacity = (Biosynthesis + Degradation + Structure) / 3)
+ 
 
 GIFTs_domains_diversity <- GIFTs_domains_community %>% 
   as.data.frame() %>% 
   left_join(alpha, by="sample") %>% 
   left_join(sample_metadata, by="sample")%>% 
-select(-ends_with(".y")) %>% 
+select(-ends_with(".x")) %>% 
   rename(richness = richness.x, neutral=neutral.x, phylo=phylo.x, mapped=mapped.x, total=total.x) 
 
  
@@ -273,6 +277,11 @@ ggplot(GIFTs_domains_diversity, aes(y=metabolic_function,x=phylo, color=species)
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+cor_results <- GIFTs_domains_diversity %>%
+  group_by(species) %>%
+  summarise(correlation = cor.test(metabolic_function, phylo, method = "spearman")$estimate,
+            p_value = cor.test(metabolic_function, phylo, method = "spearman")$p.value)
 ```
 
 ```{r}
@@ -323,6 +332,25 @@ cor_results_D <- GIFTs_domains_diversity %>%
   group_by(species) %>%
   summarise(correlation = cor.test(Degradation, phylo, method = "spearman")$estimate,
             p_value = cor.test(Degradation, phylo, method = "spearman")$p.value)
+```
+
+```{r}
+GIFTs_functions_community_tt2 <- GIFTs_functions_community %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  separate(sample, into = c("individual"), sep = "\\.") %>%
+  pivot_longer(-c(individual), names_to = "trait", values_to = "value") %>%
+  group_by(trait) %>%
+  mutate(model_result = list(lmerTest::lmer(value + (1 | individual)))) %>%
+  ungroup() %>%
+  select(trait, model_result) %>%
+  unique() %>%
+  mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(estimate))) %>%
+  mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "species") %>% pull(p.value))) %>%
+  mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
+  left_join(GIFT_db2 %>% select(Code_function, Function) %>% unique(), by = join_by(trait == Code_function)) %>%
+  rename(id = trait, trait = Function) %>%
+  select(id, trait, estimate, p_value_adj)
 ```
 
 
@@ -607,4 +635,50 @@ GIFTs_separative_even <- distill(genome_annotations,GIFT_db2,genomecol=2,annotco
 
 
 ```
+
+```{r}
+#logistical growth model
+# Fit logistic growth model for each species (if needed separately)
+# Here is one example for the full dataset:
+
+log_model <- nls(
+  metabolic_function ~ K / (1 + exp(-r * (phylo - x0))),
+  data = GIFTs_domains_diversity,
+  start = list(K = max(GIFTs_domains_diversity$metabolic_function, na.rm=TRUE),
+               r = 1,
+               x0 = mean(GIFTs_domains_diversity$neutral, na.rm=TRUE))
+)
+# Predict values from model
+GIFTs_domains_diversity$predicted <- predict(log_model)
+
+# Plot original data with fitted curve
+ggplot(GIFTs_domains_diversity, aes(x = phylo, y = metabolic_function, color = species)) +
+  geom_point() +
+  geom_line(aes(y = predicted), color = "black", linewidth = 1) +
+  scale_color_manual(values = squirrel_colors) +
+  labs(title = "Logistic Growth Model Fit", y = "Metabolic Function", x = "Phylogenetic Diversity")
+
+
+```
+
+```{r}
+write.csv(correlation_results, "correlation_results.csv", row.names = FALSE)
+
+```
+
+```{r}
+#plot: metabolic capacity and phylogenetic diversity
+ggplot(GIFTs_domains_diversity, aes(y=metabolic_capacity,x=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+GIFTs_domains_diversity %>%
+group_by(species) %>%
+  summarise(correlation = cor(phylo, metabolic_capacity, method = "spearman"),
+            p_value = cor.test(phylo, metabolic_capacity, method = "spearman")$p.value)
+```
+
+
+
 
