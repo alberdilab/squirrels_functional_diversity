@@ -622,15 +622,15 @@ genome_counts_by_host <- sample_metadata %>%
   
 # Which host species each genome can be found in
 genomes_by_species <- genome_counts_by_host %>%
-  filter(count>0) %>%
+  filter(count > 0) %>%
   group_by(genome) %>%
   mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
                         if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
   select(genome, host) %>%
   distinct(genome, .keep_all = TRUE) %>%
-  left_join(.,genome_metadata, by='genome')
-
+  left_join(., genome_metadata, by = 'genome')
 genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
 ```
 
 #overview by host species
@@ -680,6 +680,16 @@ genomes_by_species %>%
             percentage=(length(host)/1687)*100) %>%
   tt()
 ```
+
+```{r}
+#MAGs by host species
+genomes_by_species %>%
+  dplyr::group_by(host) %>%
+  summarise(n=length(host),
+            percentage=(length(host)/1687)*100) %>%
+  tt()
+```
+
 
 ```{r}
 #location

@@ -247,10 +247,24 @@ select(-ends_with(".x")) %>%
 
 
 
-ggplot(GIFTs_domains_diversity, aes(y=Biosynthesis,x=neutral, color=species))+scale_color_manual(values=squirrel_colors) +
+ggplot(GIFTs_domains_diversity, aes(y=metabolic_function,x=phylo, color=species))+scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
   geom_point() +
-  geom_smooth(method="lm")
+  geom_smooth(method=NULL)
+
+
+
+```
+
+```{r}
+
+library(mgcv)
+gam_data <- GIFTs_domains_diversity %>%
+  as.data.frame() %>%
+  GIFTs_domains_diversity$species <- as.factor(GIFTs_domains_diversity$species)
+
+gam_model <- gam(metabolic_function ~ s(phylo, by = species) + species, data = GIFTs_domains_diversity)
+summary(gam_model)
 
 
 
@@ -489,16 +503,14 @@ geom_point()+
 ```
 
 ```{r}
-#correlations of traits
-
-# Example: Assuming df contains phylo and the selected traits, and 'species' column exists
-traits <- c("B01", "B02", "B03", "B04", "B06", "B07", "B08", "B09", 
-            "B10", "B11", "D01", "D02", "D03", "D05", "D06", "D07", "D08", "D09")
-
 # Create an empty dataframe to store results
-correlation_results <- data.frame(Trait = rep(traits, each = length(unique(GIFTs_functions_community_collected$species))),
-                                  Species = rep(unique(GIFTs_functions_community_collected$species), times = length(traits)), 
-                                  Correlation = NA, P_value = NA, Significance = NA)
+correlation_results <- data.frame(
+  Trait = rep(traits, each = length(unique(GIFTs_functions_community_collected$species))),
+  Species = rep(unique(GIFTs_functions_community_collected$species), times = length(traits)), 
+  Correlation = NA, 
+  P_value = NA, 
+  Significance = NA
+)
 
 # Loop through each trait
 for (i in seq_along(traits)) {
@@ -510,20 +522,27 @@ for (i in seq_along(traits)) {
     species_data <- GIFTs_functions_community_collected %>% filter(species == species_name)
     
     # Compute the correlation between phylo and the current trait for the current species
-    test <- cor.test(species_data$phylo, species_data[[trait]], method = "spearman")  # Change to "spearman" if needed
+    test <- cor.test(species_data$phylo, species_data[[trait]], method = "spearman")
     
-    # Store the correlation, p-value, and significance symbol
-    correlation_results$Correlation[correlation_results$Trait == trait & correlation_results$Species == species_name] <- test$estimate
-    correlation_results$P_value[correlation_results$Trait == trait & correlation_results$Species == species_name] <- test$p.value
+    # Store the correlation and p-value (rounded to 5 digits)
+    correlation_results$Correlation[
+      correlation_results$Trait == trait & correlation_results$Species == species_name
+    ] <- round(test$estimate, 5)
     
-    # Add a significance symbol or label based on the p-value
-    correlation_results$Significance[correlation_results$Trait == trait & correlation_results$Species == species_name] <- 
-      ifelse(test$p.value < 0.05, "*", "")
+    correlation_results$P_value[
+      correlation_results$Trait == trait & correlation_results$Species == species_name
+    ] <- signif(test$p.value, 5)  # signif preferred for scientific notation clarity
+    
+    # Add significance symbol
+    correlation_results$Significance[
+      correlation_results$Trait == trait & correlation_results$Species == species_name
+    ] <- ifelse(test$p.value < 0.05, "*", "")
   }
 }
 
-# Print the correlation table with significance symbol
+# Print rounded results
 print(correlation_results)
+
 
 
 
@@ -638,18 +657,15 @@ GIFTs_separative_even <- distill(genome_annotations,GIFT_db2,genomecol=2,annotco
 
 ```{r}
 #logistical growth model
-# Fit logistic growth model for each species (if needed separately)
-# Here is one example for the full dataset:
-
-log_model <- nls(
+logistic_model <- nls(
   metabolic_function ~ K / (1 + exp(-r * (phylo - x0))),
   data = GIFTs_domains_diversity,
-  start = list(K = max(GIFTs_domains_diversity$metabolic_function, na.rm=TRUE),
-               r = 1,
-               x0 = mean(GIFTs_domains_diversity$neutral, na.rm=TRUE))
+  start = list(K = max(GIFTs_domains_diversity$metabolic_function), r = 1, x0 = median(GIFTs_domains_diversity$metabolic_function)),
+  control = list(maxiter = 100)
 )
+
 # Predict values from model
-GIFTs_domains_diversity$predicted <- predict(log_model)
+GIFTs_domains_diversity$predicted <- predict(logistic_model)
 
 # Plot original data with fitted curve
 ggplot(GIFTs_domains_diversity, aes(x = phylo, y = metabolic_function, color = species)) +
@@ -659,10 +675,54 @@ ggplot(GIFTs_domains_diversity, aes(x = phylo, y = metabolic_function, color = s
   labs(title = "Logistic Growth Model Fit", y = "Metabolic Function", x = "Phylogenetic Diversity")
 
 
+
+
 ```
 
 ```{r}
+# Filter data for Sciurus vulgaris
+sv_data <- GIFTs_domains_diversity %>%
+  filter(species == "Sciurus vulgaris")
+
+# Try fitting the logistic model
+sv_model <- tryCatch({
+  nls(metabolic_function ~ K / (1 + exp(-r * (phylo - x0))),
+      data = sv_data,
+      start = list(
+        K = max(sv_data$metabolic_function, na.rm = TRUE),  # asymptote
+        r = 0.1,                                             # slower growth rate
+        x0 = median(sv_data$phylo, na.rm = TRUE)             # midpoint
+      ),
+      control = nls.control(maxiter = 1000))
+}, error = function(e) {
+  message("Model fitting failed: ", e$message)
+  NULL
+})
+
+
+if (!is.null(sv_model)) {
+  sv_data$predicted <- predict(sv_model, newdata = sv_data)
+
+  ggplot(sv_data, aes(x = phylo, y = metabolic_function)) +
+    geom_point(color = "#ed2939", alpha = 0.6) +  # red for Sciurus vulgaris
+    geom_line(aes(y = predicted), color = "#ed2939", size = 1) +
+    labs(
+      title = "Logistic Growth Model Fit – Sciurus vulgaris",
+      y = "Metabolic Function",
+      x = "Phylogenetic Diversity"
+    ) +
+    theme_minimal()
+}
+
+
+
+```
+
+
+```{r}
 write.csv(correlation_results, "correlation_results.csv", row.names = FALSE)
+
+write.csv(GIFTs_domains_diversity, "GIFTs_domains_diversity.csv", row.names = FALSE)
 
 ```
 
