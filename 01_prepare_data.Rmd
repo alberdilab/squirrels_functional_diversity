@@ -701,5 +701,19 @@ sample_metadata %>%
   tt()
 ```
 
+```{r}
+# Total genes
+total_genes <- nrow(genome_annotations)
+
+# Annotated genes:
+annotated_genes <- genome_annotations %>%
+  filter(!is.na(kegg_hit) %>%
+  nrow()
+
+# Summary
+cat("Total genes:", total_genes, "\n")
+cat("Annotated genes:", annotated_genes, "\n")
+
+```
 
 

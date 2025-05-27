@@ -680,6 +680,12 @@ ggplot(GIFTs_domains_diversity, aes(x = phylo, y = metabolic_function, color = s
 ```
 
 ```{r}
+summary(logistic_model)
+
+```
+
+
+```{r}
 # Filter data for Sciurus vulgaris
 sv_data <- GIFTs_domains_diversity %>%
   filter(species == "Sciurus vulgaris")
